@@ -23,11 +23,11 @@ logging.basicConfig(filename='audio_monitoring.log', level=logging.INFO,
 FORMAT = pyaudio.paInt16
 CHANNELS = 1
 RATE = 44100
-CHUNK = 512
-CENTER_FREQUENCY = 12000
-HALF_WIDTH = 500
+CHUNK = 256
+CENTER_FREQUENCY = 5000
+HALF_WIDTH = 4000
 FREQUENCY_RANGE = (CENTER_FREQUENCY - HALF_WIDTH, CENTER_FREQUENCY + HALF_WIDTH)
-amplitude_threshold = 100000
+amplitude_threshold = 500000
 # Expected laser pattern
 EXPECTED_LENGTH = 4
 MIN_LENGTH = 3
@@ -70,27 +70,25 @@ def capture_audio(chunk=CHUNK, device_index=None):
     stream.stop_stream()
     stream.close()
     audio_data = np.frombuffer(data, dtype=np.int16)
-    filtered_data = bandpass_filter(audio_data, 9000, 15000, RATE, order=6)  # Apply bandpass filter
+    filtered_data = bandpass_filter(audio_data, 100, 12000, RATE, order=6)  # Apply bandpass filter
     return filtered_data
 
 
-
-
 # FFT Function
-def fft_and_filter(audio_data):
-    yf = fft(audio_data)
-    xf = fftfreq(len(audio_data), 1 / RATE)
+def fft_and_filter(filtered_data):
+    yf = fft(filtered_data)
+    xf = fftfreq(len(filtered_data), 1 / RATE)
     return xf, yf
 
 # Visualization Update Functions
 def update_waveform(frame):
-    audio_data = capture_audio()
-    line_waveform.set_ydata(audio_data)
+    filtered_data = capture_audio()
+    line_waveform.set_ydata(filtered_data)
     return line_waveform,
 
 def update_fft(frame):
-    audio_data = capture_audio()
-    xf, yf = fft_and_filter(audio_data)
+    filtered_data = capture_audio()
+    xf, yf = fft_and_filter(filtered_data)
     xf = xf[:len(xf)//2]  # Keep only the positive frequencies
     yf = np.abs(yf[:len(yf)//2])
     line_fft.set_data(xf, yf)
@@ -175,13 +173,14 @@ axs[0].set_title('Live Audio Waveform')
 axs[0].set_xlabel('Samples')
 axs[0].set_ylabel('Amplitude')
 axs[0].set_xlim(0, CHUNK)
-axs[0].set_ylim(-10000, 10000)
+axs[0].set_ylim(-30000, 30000)
 line_waveform, = axs[0].plot(np.arange(CHUNK), np.zeros(CHUNK), lw=1)
 
 axs[1].set_title('Live FFT of Audio Signal')
 axs[1].set_xlabel('Frequency (Hz)')
 axs[1].set_ylabel('Magnitude')
-axs[1].set_xlim(8000, 20000)
+axs[1].set_xlim(0, 15000)
+axs[1].set_ylim(0, 1000000)
 line_fft, = axs[1].plot([], [], lw=1)
 
 axs[2].set_title('Filtered Signal Presence')
@@ -193,7 +192,7 @@ line_time_resolved, = axs[2].plot([], [], lw=1)
 
 # Animation
 ani_waveform = FuncAnimation(fig, update_waveform, blit=True, interval=300, cache_frame_data=True)
-ani_fft = FuncAnimation(fig, update_fft, blit=True, interval=50, cache_frame_data=False)
+ani_fft = FuncAnimation(fig, update_fft, blit=True, interval=100, cache_frame_data=False)
 ani_time_resolved = FuncAnimation(fig, update_time_resolved, blit=True, interval=300, cache_frame_data=True)
 
 plt.show()

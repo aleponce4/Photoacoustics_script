@@ -12,8 +12,8 @@ logging.basicConfig(filename='pattern_characterization.log', level=logging.INFO,
 # Parameter Configuration
 FORMAT = pyaudio.paInt16
 CHANNELS = 1
-RATE = 44100
-CHUNK = 1024  # Consider adjusting for optimal performance
+RATE = 44100 # Sampling rate
+CHUNK = 256  # adjust for optimal performance - Smaller chunks = higher resolution but more lag
 CENTER_FREQUENCY = 500
 HALF_WIDTH = 150
 FREQUENCY_RANGE = (CENTER_FREQUENCY - HALF_WIDTH, CENTER_FREQUENCY + HALF_WIDTH)
@@ -57,7 +57,7 @@ def fft_and_filter(audio_data):
 # Main Processing Loop
 def process_audio():
     binary_signal = []
-    for _ in range(100):  # Adjust based on how long you want to capture and analyze
+    for _ in range(1000):  # Adjust based capture time Total Duration = 1024 * X / 44100 ≈ Y seconds
         audio_data = capture_audio()
         yf_filtered = fft_and_filter(audio_data)
         signal_presence = np.any(yf_filtered >= amplitude_threshold).astype(int)
