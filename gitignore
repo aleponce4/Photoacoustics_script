@@ -127,5 +127,5 @@ dmypy.json
 # log files
 *.log
 *.txt
-
-
+*.mp3
+*.wav

@@ -1,7 +1,6 @@
 """
 Real-Time Spectrogram Animation for Laser Pulse Detection
 """
-# Import Libraries
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
@@ -17,12 +16,16 @@ FORMAT = pyaudio.paInt16
 CHANNELS = 1
 RATE = 44100  # Sampling rate
 CHUNK = 1024  # Size of each audio chunk
+BUFFER_SECONDS = 2  # Duration of audio data to display in seconds
+BUFFER_SIZE = RATE * BUFFER_SECONDS  # Total samples to maintain in the buffer
 
 # Initialize PyAudio
 audio = pyaudio.PyAudio()
 stream = audio.open(format=FORMAT, channels=CHANNELS, rate=RATE, input=True, frames_per_buffer=CHUNK)
 
-# Function to get audio data
+# Initialize audio data buffer
+audio_buffer = np.zeros(BUFFER_SIZE, dtype=np.int16)
+
 def get_audio_data():
     try:
         data = stream.read(CHUNK, exception_on_overflow=False)
@@ -35,26 +38,32 @@ def get_audio_data():
 # Initialize plot
 fig, ax = plt.subplots()
 ax.set_ylim(0, RATE / 2)
-ax.set_xlabel('Time')
-ax.set_ylabel('Frequency')
+ax.set_xlabel('Time (seconds)')
+ax.set_ylabel('Frequency (Hz)')
 
-# Initial call to specgram to set up the plot
-_, _, _, im = ax.specgram(np.zeros(CHUNK), NFFT=1024, Fs=RATE, noverlap=512, cmap='plasma')
+# To set up the x-axis time labels more accurately
+time_vec = np.linspace(0, BUFFER_SECONDS, num=BUFFER_SIZE)
+_, _, _, im = ax.specgram(audio_buffer, NFFT=1024, Fs=RATE, noverlap=512, cmap='plasma')
 fig.colorbar(im, ax=ax, label='Intensity dB')
 
-# Update function for animation
 def update(frame):
-    audio_data = get_audio_data()
-    ax.clear()  # Clear the axis to redraw the spectrogram
+    global audio_buffer
+    new_audio_data = get_audio_data()
+    # Update the audio buffer
+    audio_buffer = np.roll(audio_buffer, -len(new_audio_data))
+    audio_buffer[-len(new_audio_data):] = new_audio_data
+    # Clear the axis to redraw the spectrogram with updated buffer
+    ax.clear()
     ax.set_ylim(0, RATE / 2)
-    ax.set_xlabel('Time')
-    ax.set_ylabel('Frequency')
-    # Directly use the specgram function to plot the new data
-    _, _, _, im = ax.specgram(audio_data, NFFT=1024, Fs=RATE, noverlap=512, cmap='plasma')
+    ax.set_xlabel('Time (seconds)')
+    ax.set_ylabel('Frequency (Hz)')
+    _, _, _, im = ax.specgram(audio_buffer, NFFT=1024, Fs=RATE, noverlap=512, cmap='plasma')
+    # Update x-axis to show time labels correctly
+    ax.set_xlim(0, BUFFER_SECONDS)
     return im,
 
 # Create animation
-ani = FuncAnimation(fig, update, interval=30)
+ani = FuncAnimation(fig, update, interval=30, blit=False)
 
 plt.show()
 
@@ -62,3 +71,5 @@ plt.show()
 stream.stop_stream()
 stream.close()
 audio.terminate()
+
+
