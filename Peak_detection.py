@@ -1,29 +1,49 @@
-
+"""
+Title: Real-Time Audio Monitoring for Photoacostuic detection
+Description: This script captures and processes audio data in real-time to laser pulse train sounds. It visualizes audio waveforms, performs FFT analysis, and detects specific frequency patterns.
+Author: Alejandro Ponce - aleponce92@gmail.com
+Dependencies: pyaudio, numpy, scipy, matplotlib
+"""
 
 # Import Libraries
 import pyaudio
 import numpy as np
-from scipy.fft import fft, fftfreq, ifft
+from scipy.fft import fft, fftfreq
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
+import logging
+
+# Setup logging
+logging.basicConfig(filename='audio_monitoring.log', level=logging.INFO,
+                    format='%(asctime)s:%(levelname)s:%(message)s')
+
 
 # Parameter Configuration
 FORMAT = pyaudio.paInt16
 CHANNELS = 1
 RATE = 44100
-CHUNK = 512  
-
-# Define Frequency Range for filtering
-CENTER_FREQUENCY = 500  # Target signal's center frequency in Hz
-HALF_WIDTH = 150  # Half-width of the frequency range in Hz
+CHUNK = 512
+CENTER_FREQUENCY = 500
+HALF_WIDTH = 150
 FREQUENCY_RANGE = (CENTER_FREQUENCY - HALF_WIDTH, CENTER_FREQUENCY + HALF_WIDTH)
-amplitude_threshold = 100000  # Amplitude threshold for filtering
+amplitude_threshold = 100000
 
 # Initialization
 audio = pyaudio.PyAudio()
 
+# Log available microphones
+try:
+    available_mics = [
+        audio.get_device_info_by_index(i)['name']
+        for i in range(audio.get_device_count())
+        if audio.get_device_info_by_index(i)['maxInputChannels'] > 0
+    ]
+    logging.info("Available microphones: %s", available_mics)
+except Exception as e:
+    logging.error("Failed to list available microphones: %s", str(e))
+
 # Audio Capture Function
-def capture_audio(chunk=CHUNK, device_index=None):
+def capture_audio(chunk=CHUNK, device_index=None):   # Chane Microhpone device here
     stream = audio.open(format=FORMAT, channels=CHANNELS, rate=RATE, input=True,
                         frames_per_buffer=chunk, input_device_index=device_index)
     data = stream.read(chunk, exception_on_overflow=False)  # Prevent overflow exceptions
