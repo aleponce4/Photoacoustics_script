@@ -9,6 +9,7 @@ Dependencies: pyaudio, numpy, scipy, matplotlib
 import pyaudio
 import numpy as np
 from scipy.fft import fft, fftfreq
+from scipy.signal import butter, lfilter
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 import logging
@@ -23,8 +24,8 @@ FORMAT = pyaudio.paInt16
 CHANNELS = 1
 RATE = 44100
 CHUNK = 512
-CENTER_FREQUENCY = 500
-HALF_WIDTH = 150
+CENTER_FREQUENCY = 12000
+HALF_WIDTH = 500
 FREQUENCY_RANGE = (CENTER_FREQUENCY - HALF_WIDTH, CENTER_FREQUENCY + HALF_WIDTH)
 amplitude_threshold = 100000
 # Expected laser pattern
@@ -46,14 +47,34 @@ try:
 except Exception as e:
     logging.error("Failed to list available microphones: %s", str(e))
 
-# Audio Capture Function
-def capture_audio(chunk=CHUNK, device_index=None):   # Chane Microhpone device here
+
+# Bandpass filtering defined by the range
+def butter_bandpass(lowcut, highcut, fs, order=5):
+    nyq = 0.5 * fs
+    low = lowcut / nyq
+    high = highcut / nyq
+    b, a = butter(order, [low, high], btype='band')
+    return b, a
+
+def bandpass_filter(data, lowcut, highcut, fs, order=5):
+    b, a = butter_bandpass(lowcut, highcut, fs, order=order)
+    y = lfilter(b, a, data)
+    return y
+
+
+# Audio Capture and Filter Function
+def capture_audio(chunk=CHUNK, device_index=None):
     stream = audio.open(format=FORMAT, channels=CHANNELS, rate=RATE, input=True,
                         frames_per_buffer=chunk, input_device_index=device_index)
     data = stream.read(chunk, exception_on_overflow=False)  # Prevent overflow exceptions
     stream.stop_stream()
     stream.close()
-    return np.frombuffer(data, dtype=np.int16)
+    audio_data = np.frombuffer(data, dtype=np.int16)
+    filtered_data = bandpass_filter(audio_data, 9000, 15000, RATE, order=6)  # Apply bandpass filter
+    return filtered_data
+
+
+
 
 # FFT Function
 def fft_and_filter(audio_data):
@@ -154,13 +175,13 @@ axs[0].set_title('Live Audio Waveform')
 axs[0].set_xlabel('Samples')
 axs[0].set_ylabel('Amplitude')
 axs[0].set_xlim(0, CHUNK)
-axs[0].set_ylim(-32768, 32767)
+axs[0].set_ylim(-10000, 10000)
 line_waveform, = axs[0].plot(np.arange(CHUNK), np.zeros(CHUNK), lw=1)
 
 axs[1].set_title('Live FFT of Audio Signal')
 axs[1].set_xlabel('Frequency (Hz)')
 axs[1].set_ylabel('Magnitude')
-axs[1].set_xlim(0, RATE / 10)
+axs[1].set_xlim(8000, 20000)
 line_fft, = axs[1].plot([], [], lw=1)
 
 axs[2].set_title('Filtered Signal Presence')
@@ -171,9 +192,9 @@ line_time_resolved, = axs[2].plot([], [], lw=1)
 
 
 # Animation
-ani_waveform = FuncAnimation(fig, update_waveform, blit=True, interval=200, cache_frame_data=False)
-ani_fft = FuncAnimation(fig, update_fft, blit=True, interval=200, cache_frame_data=False)
-ani_time_resolved = FuncAnimation(fig, update_time_resolved, blit=True, interval=200, cache_frame_data=False)
+ani_waveform = FuncAnimation(fig, update_waveform, blit=True, interval=300, cache_frame_data=True)
+ani_fft = FuncAnimation(fig, update_fft, blit=True, interval=50, cache_frame_data=False)
+ani_time_resolved = FuncAnimation(fig, update_time_resolved, blit=True, interval=300, cache_frame_data=True)
 
 plt.show()
 
