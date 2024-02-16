@@ -27,6 +27,10 @@ CENTER_FREQUENCY = 500
 HALF_WIDTH = 150
 FREQUENCY_RANGE = (CENTER_FREQUENCY - HALF_WIDTH, CENTER_FREQUENCY + HALF_WIDTH)
 amplitude_threshold = 100000
+# Expected laser pattern
+EXPECTED_LENGTH = 4
+MIN_LENGTH = 3
+MAX_ZERO_GAP = 2
 
 # Initialization
 audio = pyaudio.PyAudio()
@@ -114,6 +118,32 @@ def update_time_resolved(frame):
 
     return axs[2],
 
+def detect_pattern_breaks(binary_signal):
+    in_train = False  # Are we currently in a train of 1s?
+    train_length = 0  # Length of the current train of 1s
+    gap_length = 0  # Length of the current gap of 0s
+
+    for bit in binary_signal:
+        if bit == 1:
+            if not in_train:
+                # Starting a new train, check the gap before it
+                if gap_length > MAX_ZERO_GAP:
+                    print("Unexpected long gap detected.")
+                in_train = True
+                gap_length = 0  # Reset gap length
+            train_length += 1
+        else:  # bit == 0
+            if in_train:
+                # Exiting a train, check its length
+                if train_length < MIN_LENGTH:
+                    print("Missing or short train detected.")
+                in_train = False
+                train_length = 0  # Reset train length
+            gap_length += 1
+
+    # Check the last train if we ended in one
+    if in_train and train_length < MIN_LENGTH:
+        print("Missing or short train detected at the end.")
 
 
 
@@ -138,9 +168,8 @@ line_fft, = axs[1].plot([], [], lw=1)
 axs[2].set_title('Filtered Signal Presence')
 axs[2].set_xlabel('Time (s)')
 axs[2].set_ylabel('Presence')
-axs[2].set_ylim(-0.5, 1.5)  # Ensure this setting is applied only once here for initial setup
+axs[2].set_ylim(-0.5, 1.5)  # only once here for initial setup
 line_time_resolved, = axs[2].plot([], [], lw=1)
-
 
 
 # Animation
