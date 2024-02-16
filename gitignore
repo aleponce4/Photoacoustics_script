@@ -124,6 +124,8 @@ dmypy.json
 # profiling data
 .prof
 
-# Your log file
-audio_monitoring.log
-audio_monitoring.txt
+# log files
+*.log
+*.txt
+
+
