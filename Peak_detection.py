@@ -108,15 +108,13 @@ def update_time_resolved(frame):
     binary_signal_presence_history[-1] = signal_presence
     
     # Update the plot with the binary signal presence history
-    axs[2].clear()
-    axs[2].set_title('Filtered Signal Presence')
-    axs[2].set_xlabel('Time')
-    axs[2].set_ylabel('Presence')
-    axs[2].set_ylim(-0.5, 1.5)
-    axs[2].set_xlim(0, binary_history_length)
-    axs[2].plot(binary_signal_presence_history, drawstyle='steps-pre')
+    line_time_resolved.set_data(np.arange(len(binary_signal_presence_history)), binary_signal_presence_history)
+    
+    # Ensure the plot is redrawn with the new data
+    axs[2].relim()  # Recompute the data limits
+    axs[2].autoscale_view()  # Rescale the view limits
 
-    return axs[2],
+    return line_time_resolved,
 
 def detect_pattern_breaks(binary_signal):
     in_train = False  # Are we currently in a train of 1s?
