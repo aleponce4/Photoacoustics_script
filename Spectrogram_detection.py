@@ -1,75 +1,47 @@
 """
-Real-Time Spectrogram Animation for Laser Pulse Detection
+Spectrogram for Laser Pulse Detection
 """
-import numpy as np
+
 import matplotlib.pyplot as plt
-from matplotlib.animation import FuncAnimation
-import pyaudio
-import logging
+from scipy.io import wavfile
+import numpy as np
+import librosa
+import librosa.display
 
-# Setup logging
-logging.basicConfig(filename='realtime_spectrogram.log', level=logging.INFO,
-                    format='%(asctime)s:%(levelname)s:%(message)s')
+# Path to audio file
+audio_path = 'TestAudio.wav'
 
-# Constants
-FORMAT = pyaudio.paInt16
-CHANNELS = 1
-RATE = 44100  # Sampling rate
-CHUNK = 1024  # Size of each audio chunk
-BUFFER_SECONDS = 2  # Duration of audio data to display in seconds
-BUFFER_SIZE = RATE * BUFFER_SECONDS  # Total samples to maintain in the buffer
+# Load the audio file
+sampling_rate, data = wavfile.read(audio_path)
 
-# Initialize PyAudio
-audio = pyaudio.PyAudio()
-stream = audio.open(format=FORMAT, channels=CHANNELS, rate=RATE, input=True, frames_per_buffer=CHUNK)
+# Generate the spectrogram with a focus on contrast and pattern visibility
+plt.figure(figsize=(20, 4))  # Adjust figure size to stretch out the time axis
+Pxx, freqs, bins, im = plt.specgram(data, Fs=sampling_rate, NFFT=1024, noverlap=512, scale='dB')
+plt.title('Spectrogram of TestAudio.wav')
+plt.ylabel('Frequency (Hz)')
+plt.xlabel('Time (sec)')
+plt.colorbar(label='Intensity in dB')
 
-# Initialize audio data buffer
-audio_buffer = np.zeros(BUFFER_SIZE, dtype=np.int16)
-
-def get_audio_data():
-    try:
-        data = stream.read(CHUNK, exception_on_overflow=False)
-        audio_data = np.frombuffer(data, dtype=np.int16)
-        return audio_data
-    except Exception as e:
-        logging.error("Error capturing audio: %s", str(e))
-        return np.zeros(CHUNK)
-
-# Initialize plot
-fig, ax = plt.subplots()
-ax.set_ylim(0, RATE / 2)
-ax.set_xlabel('Time (seconds)')
-ax.set_ylabel('Frequency (Hz)')
-
-# To set up the x-axis time labels more accurately
-time_vec = np.linspace(0, BUFFER_SECONDS, num=BUFFER_SIZE)
-_, _, _, im = ax.specgram(audio_buffer, NFFT=1024, Fs=RATE, noverlap=512, cmap='plasma')
-fig.colorbar(im, ax=ax, label='Intensity dB')
-
-def update(frame):
-    global audio_buffer
-    new_audio_data = get_audio_data()
-    # Update the audio buffer
-    audio_buffer = np.roll(audio_buffer, -len(new_audio_data))
-    audio_buffer[-len(new_audio_data):] = new_audio_data
-    # Clear the axis to redraw the spectrogram with updated buffer
-    ax.clear()
-    ax.set_ylim(0, RATE / 2)
-    ax.set_xlabel('Time (seconds)')
-    ax.set_ylabel('Frequency (Hz)')
-    _, _, _, im = ax.specgram(audio_buffer, NFFT=1024, Fs=RATE, noverlap=512, cmap='plasma')
-    # Update x-axis to show time labels correctly
-    ax.set_xlim(0, BUFFER_SECONDS)
-    return im,
-
-# Create animation
-ani = FuncAnimation(fig, update, interval=30, blit=False)
-
+# Display the spectrogram
 plt.show()
 
-# Cleanup
-stream.stop_stream()
-stream.close()
-audio.terminate()
 
+"""
+Load and Visualize Audio Data
+"""
+
+# Path to audio file
+audio_path = 'TestAudio.wav'
+
+# Load audio file with librosa
+data, sr = librosa.load(audio_path, sr=None)  
+
+# Plot audio waveform
+plt.figure(figsize=(14, 5))
+times = np.arange(len(data))/sr
+plt.plot(times, data)
+plt.title('Audio Waveform')
+plt.xlabel('Time (s)')
+plt.ylabel('Amplitude')
+plt.show()
 
